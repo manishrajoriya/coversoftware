@@ -1,8 +1,9 @@
 'use client'
 import HandleComponent from '@/components/HandleComponent'
 import { AspectRatio } from '@/components/ui/aspect-ratio'
-import Image from 'next/image'
-import React, { useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import NextImage from 'next/image'
+import React, { useEffect, useRef, useState } from 'react'
 import { Rnd } from 'react-rnd'
 
 type DesignConfiguratiorProps = {
@@ -25,23 +26,75 @@ const DesignConfiguratior = ({configId, imageUrl, imageDimensions}:DesignConfigu
         x: 150,
         y: 205,
     })
+    const [phoneCasePosition, setPhoneCasePosition] = useState({
+        width: 0,
+        height: 0,
+        left: 0,
+        top: 0,
+        x: 0,
+        y: 0,
+     })
 
     const phoneCaseRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
+    function phoneCasePositionAll(){
+        const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight, left: phoneCaseLeft, top: phoneCaseTop} = phoneCaseRef.current!.getBoundingClientRect()
+        setPhoneCasePosition({
+            width: phoneCaseWidth,
+            height: phoneCaseHeight,
+            left: phoneCaseLeft,
+            top: phoneCaseTop,
+            x: phoneCaseX,
+            y: phoneCaseY,
+        })
+        console.log("phoneCasePosition", phoneCasePosition);
+    }
+    useEffect(() => {
+        phoneCasePositionAll()
+    }, [imageUrl])
+
+    function base64ToBlob(base64: string) {
+        const byteCharacters = atob(base64)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        return new Blob([byteArray], { type: 'image/png' })
+    }
 
     async function saveConfigration(){
         try {
-            const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight} = phoneCaseRef.current!.getBoundingClientRect()
-            const {x: containerX, y: containerY, width: containerWidth, height: containerHeight} = containerRef.current!.getBoundingClientRect()
+            const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight, left: phoneCaseLeft, top: phoneCaseTop} = phoneCaseRef.current!.getBoundingClientRect()
+            const {x: containerX, y: containerY, width: containerWidth, height: containerHeight, left: containerLeft, top: containerTop} = containerRef.current!.getBoundingClientRect()
+console.log("phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX, containerY, containerWidth, containerHeight, containerLeft, containerTop",phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX, containerY, containerWidth, containerHeight, containerLeft, containerTop);
 
-            const designData = {
-                configId,
-                imageUrl,
-                imageDimensions,
-                
-            }
+            const leftOffset = phoneCaseLeft - containerLeft
+            const topOffset = phoneCaseTop - containerTop
+            const actualX = randeredPosition.x - leftOffset
+            const actualY = randeredPosition.y - topOffset
+            const actualWidth = randeredDimensions.width * (containerWidth / phoneCaseWidth)
+            const actualHeight = randeredDimensions.height * (containerHeight / phoneCaseHeight)
+
+            //canvas
+            const canvas = document.createElement('canvas')
+            canvas.width = phoneCaseWidth
+            canvas.height = phoneCaseHeight
+            const ctx = canvas.getContext('2d')
+
+            const userImage = new Image()
+            userImage.crossOrigin = 'anonymous'
+            userImage.src = imageUrl
+            await new Promise(resolve => userImage.onload = resolve)
+            ctx!.drawImage(userImage, actualX, actualY, randeredDimensions.width, randeredDimensions.height)
+            const base64 = canvas.toDataURL()
+            const base64Data = base64.split(',')[1]
+            const blob = base64ToBlob(base64Data)
+            const file = new File([blob], 'image.png', { type: 'image/png' })
+            console.log("file", file);
         } catch (error) {
+            console.log("error", error);
             
         }
     }
@@ -55,11 +108,10 @@ const DesignConfiguratior = ({configId, imageUrl, imageDimensions}:DesignConfigu
             ratio={896 / 1831}
             className='pointer-events-none relative z-50 aspect-[896/1831] w-full '
             >
-                <Image
+                <NextImage
                     src="/phone-template.png"
                     alt='Product Image'
                     fill
-                    quality={100}
                     className='pointer-events-none z-50 select-none'  
                 />
             </AspectRatio>
@@ -97,16 +149,19 @@ const DesignConfiguratior = ({configId, imageUrl, imageDimensions}:DesignConfigu
                     
                    >
                     <div className='relative w-full h-full'>
-                        <Image
+                        <NextImage
                             src={imageUrl}
                             alt='Product Image'
+                            onLoad={phoneCasePositionAll}
                             fill
-                            quality={100}
-                            className='w-full h-full object-cover'  
+                            className='pointer-events-none'  
                         />
                     </div>
                 </Rnd>
             </div>
+        </div>
+        <div className='flex flex-col gap-4'>
+            <Button onClick={saveConfigration}>Save</Button>
         </div>
     </div>
   )
