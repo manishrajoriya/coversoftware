@@ -1,17 +1,38 @@
-import { db } from '@/db'
 import React from 'react'
+import DesignConfiguratior from './DesignConfiguratior'
+import { notFound } from 'next/navigation'
+import { db } from '@/db'
 
-function page() {
-    
-    const config = db.configuration.findUnique({
-        where: {
-            id: "3bdaf405-cb40-45d0-a0d9-60b259af39a6"
-        },
-    })
+type pageProps = {
+    searchParams: {
+        [key: string]: string | string[] | undefined
+    }
+}
 
-    console.log("config", config)
+const page = async ({searchParams}:pageProps) => {
+  const {id} = searchParams
+  if (!id || typeof id !== 'string') {
+    return notFound()
+  }
+
+  const config = await db.configuration.findUnique({
+    where: {
+      id: id as string
+    }
+  })
+  if (!config) {
+    return notFound()
+  }
+
+  const {width, height,} = config
+
   return (
-    <div>page</div>
+    <div>
+      <DesignConfiguratior configId={config.id}
+      imageUrl={config.imageUrl}
+      imageDimensions={{width, height}}
+      />
+    </div>
   )
 }
 

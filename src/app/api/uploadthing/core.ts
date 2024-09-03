@@ -35,6 +35,8 @@ export const ourFileRouter = {
             width: width || 0,
           },
         });
+
+        return { configId: configuration.id };
       }else{
         const updatedConfiguration = await db.configuration.update({
           where: {

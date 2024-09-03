@@ -18,7 +18,7 @@ const page = () => {
 
     const {startUpload, isUploading} = useUploadThing("imageUploader", {
         onClientUploadComplete: ([data]) => {
-            const configId = data.serverData?.configId
+            const configId = data.serverData.configId
             console.log("configId", configId)
             startTransition(() => {
                 router.push(`/configur/design?id=${configId}`)
