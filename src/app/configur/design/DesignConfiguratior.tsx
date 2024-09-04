@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import NextImage from 'next/image'
 import React, { useEffect, useRef, useState } from 'react'
 import { Rnd } from 'react-rnd'
+import { useRouter } from 'next/navigation'
+import { useUploadThing } from '@/lib/uploadthing'
+import html2canvas from 'html2canvas'
 
 type DesignConfiguratiorProps = {
     configId: string
@@ -16,10 +19,10 @@ type DesignConfiguratiorProps = {
 }
 
 const DesignConfiguratior = ({configId, imageUrl, imageDimensions}:DesignConfiguratiorProps) => {
-
+    const router = useRouter()
     const [randeredDimensions, setRanderDimensions] = useState({
-        width: imageDimensions.width / 4,
-        height: imageDimensions.height / 4,
+        width: imageDimensions.width ,
+        height: imageDimensions.height ,
     })
 
     const [randeredPosition, setRanderPosition] = useState({
@@ -38,78 +41,118 @@ const DesignConfiguratior = ({configId, imageUrl, imageDimensions}:DesignConfigu
     const phoneCaseRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
-    function phoneCasePositionAll(){
-        const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight, left: phoneCaseLeft, top: phoneCaseTop} = phoneCaseRef.current!.getBoundingClientRect()
-        setPhoneCasePosition({
-            width: phoneCaseWidth,
-            height: phoneCaseHeight,
-            left: phoneCaseLeft,
-            top: phoneCaseTop,
-            x: phoneCaseX,
-            y: phoneCaseY,
-        })
-        console.log("phoneCasePosition", phoneCasePosition);
-    }
-    useEffect(() => {
-        phoneCasePositionAll()
-    }, [imageUrl])
+    const {startUpload, isUploading} = useUploadThing('imageUploader')
 
-    function base64ToBlob(base64: string) {
-        const byteCharacters = atob(base64)
-        const byteNumbers = new Array(byteCharacters.length)
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i)
-        }
-        const byteArray = new Uint8Array(byteNumbers)
-        return new Blob([byteArray], { type: 'image/png' })
-    }
+    // function phoneCasePositionAll(){
+    //     const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight, left: phoneCaseLeft, top: phoneCaseTop} = phoneCaseRef.current!.getBoundingClientRect()
+    //     setPhoneCasePosition({
+    //         width: phoneCaseWidth,
+    //         height: phoneCaseHeight,
+    //         left: phoneCaseLeft,
+    //         top: phoneCaseTop,
+    //         x: phoneCaseX,
+    //         y: phoneCaseY,
+    //     })
+    //     console.log("phoneCasePosition", phoneCasePosition);
+    // }
+    // useEffect(() => {
+    //     phoneCasePositionAll()
+    // }, [imageUrl])
 
+    
     async function saveConfigration(){
         try {
-            const {x: phoneCaseX, y: phoneCaseY, width: phoneCaseWidth, height: phoneCaseHeight, left: phoneCaseLeft, top: phoneCaseTop} = phoneCaseRef.current!.getBoundingClientRect()
-            const {x: containerX, y: containerY, width: containerWidth, height: containerHeight, left: containerLeft, top: containerTop} = containerRef.current!.getBoundingClientRect()
-console.log("phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX, containerY, containerWidth, containerHeight, containerLeft, containerTop",phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX, containerY, containerWidth, containerHeight, containerLeft, containerTop);
+           const {
+        left: caseLeft,
+        top: caseTop,
+        width,
+        height,
+      } = phoneCaseRef.current!.getBoundingClientRect()
 
-            const leftOffset = phoneCaseLeft - containerLeft
-            const topOffset = phoneCaseTop - containerTop
-            const actualX = randeredPosition.x - leftOffset
-            const actualY = randeredPosition.y - topOffset
-            const actualWidth = randeredDimensions.width * (containerWidth / phoneCaseWidth)
-            const actualHeight = randeredDimensions.height * (containerHeight / phoneCaseHeight)
+        const { left: containerLeft, top: containerTop } =
+        containerRef.current!.getBoundingClientRect()
 
-            //canvas
-            const canvas = document.createElement('canvas')
-            canvas.width = phoneCaseWidth
-            canvas.height = phoneCaseHeight
-            const ctx = canvas.getContext('2d')
+      const leftOffset = caseLeft - containerLeft
+      const topOffset = caseTop - containerTop
 
-            const userImage = new Image()
-            userImage.crossOrigin = 'anonymous'
-            userImage.src = imageUrl
-            await new Promise(resolve => userImage.onload = resolve)
-            ctx!.drawImage(userImage, actualX, actualY, randeredDimensions.width, randeredDimensions.height)
-            const base64 = canvas.toDataURL()
-            const base64Data = base64.split(',')[1]
-            const blob = base64ToBlob(base64Data)
-            const file = new File([blob], 'image.png', { type: 'image/png' })
-            console.log("file", file);
+        const actualX = randeredPosition.x - leftOffset
+      const actualY = randeredPosition.y - topOffset
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+
+      const userImage = new Image()
+      userImage.crossOrigin = 'anonymous'
+      userImage.src = imageUrl
+      await new Promise((resolve) => (userImage.onload = resolve))
+
+      ctx?.drawImage(
+        userImage,
+        actualX,
+        actualY,
+        randeredDimensions.width,
+        randeredDimensions.height
+      )
+
+      const base64 = canvas.toDataURL()
+      const base64Data = base64.split(',')[1]
+
+      const blob = base64ToBlob(base64Data, 'image/png')
+      const file = new File([blob], 'filename.png', { type: 'image/png' })
+
+      await startUpload([file], { configId })
+            
+            router.push(`/configur/preview?id=${configId}`)
         } catch (error) {
             console.log("error", error);
             
         }
+
+       
+
+
     }
+
+     function base64ToBlob(base64: string, mimeType: string) {
+            const byteCharacters = atob(base64)
+            const byteNumbers = new Array(byteCharacters.length)
+            for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+            }
+            const byteArray = new Uint8Array(byteNumbers)
+            return new Blob([byteArray], { type: mimeType })
+        }
+
+
+         const downloadImage = () => {
+            if (phoneCaseRef.current) {
+            html2canvas(phoneCaseRef.current).then((canvas) => {
+                const link = document.createElement('a');
+                link.download = 'mobile-cover.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+            }
+        };
+
+     
     
   return (
     <div className='relative mt-20 grid grid-cols-1 lg:grid-cols-3 mb-20 pb-20'>
-        <div ref={containerRef} className='relative h-[37.5rem] overflow-hidden col-span-2 w-full max-w-4xl flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'>
-            <div className='relative w-60 bg-opacity-50 pointer-events-none aspect-[896/1831]'>
-            <AspectRatio 
+        <div ref={containerRef} className='relative h-[42.5rem] overflow-hidden col-span-2 w-full max-w-4xl flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'>
+            
+            <div 
             ref={phoneCaseRef}
-            ratio={896 / 1831}
-            className='pointer-events-none relative z-50 aspect-[896/1831] w-full '
+            className='relative w-10/12 bg-opacity-50 pointer-events-none aspect-[1/1]'>
+            <AspectRatio 
+            
+            ratio={1/1}
+            className='pointer-events-none relative z-50 aspect-[1/1] w-full '
             >
                 <NextImage
-                    src="/phone-template.png"
+                    src="/s24.webp"
                     alt='Product Image'
                     fill
                     className='pointer-events-none z-50 select-none'  
@@ -119,7 +162,7 @@ console.log("phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX
           <div
             className='absolute inset-0 left-[3px] top-px right-[3px] bottom-px rounded-[32px]'
           />
-        </div>
+         </div>
 
             <div>
                 <Rnd
@@ -152,16 +195,17 @@ console.log("phoneCaseX, phoneCaseY, phoneCaseWidth, phoneCaseHeight, containerX
                         <NextImage
                             src={imageUrl}
                             alt='Product Image'
-                            onLoad={phoneCasePositionAll}
                             fill
                             className='pointer-events-none'  
                         />
                     </div>
                 </Rnd>
+                
             </div>
         </div>
         <div className='flex flex-col gap-4'>
             <Button onClick={saveConfigration}>Save</Button>
+            <Button onClick={downloadImage}>Download</Button>
         </div>
     </div>
   )
